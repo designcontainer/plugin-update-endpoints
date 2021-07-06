@@ -1,0 +1,14 @@
+{
+	"name": "designcontainer/plugin-update-endpoints",
+	"description": "A plugin for exposing the update urls for plugins. Used in combination with the plugin updater workflow on GitHub.",
+	"type": "wordpress-plugin",
+	"require": {
+		"composer/installers": "^1.9"
+	},
+	"authors": [
+		{
+			"name": "Design Container AS",
+			"homepage": "https://designcontainer.no"
+		}
+	]
+}
