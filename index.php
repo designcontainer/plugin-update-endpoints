@@ -3,7 +3,7 @@
  * Plugin Name:       Plugin Update Endpoints
  * Plugin URI:        https://github.com/designcontainer/plugin-update-endpoints
  * Description:       A plugin for exposing the update urls for plugins. Used in combination with the plugin updater workflow on GitHub
- * Version:           1.0.0
+ * Version:           1.0.1
  * Author:            Design Container
  * Author URI:        https://designcontainer.no
  * Text Domain:       plugin-update-endpoints
@@ -11,7 +11,7 @@
 
 class PluginUpdateEndpoints {
 	public function __construct() {
-		$this->version = '1.0.0';
+		$this->version = '1.0.1';
 		$this->plugin_name = 'plugin-update-endpoints';
 		$this->api_route = $this->plugin_name.'/v1';
 
@@ -26,6 +26,7 @@ class PluginUpdateEndpoints {
 	private function loader() {
 		add_filter( 'rest_api_init', array( $this, 'update_url_endpoint' ) );
 		add_action( 'template_redirect', array( $this, 'frontend_content' ) ); 
+		add_filter( 'auto_update_plugin', '__return_false' );
 	}
 
 	/**
