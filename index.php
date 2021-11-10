@@ -3,15 +3,15 @@
  * Plugin Name:       Plugin Update Endpoints
  * Plugin URI:        https://github.com/designcontainer/plugin-update-endpoints
  * Description:       A plugin for exposing the update urls for plugins. Used in combination with the plugin updater workflow on GitHub
- * Version:           1.0.1
+ * Version:           1.1.0
  * Author:            Design Container
  * Author URI:        https://designcontainer.no
  * Text Domain:       plugin-update-endpoints
  */
 
-class PluginUpdateEndpoints {
+class Plugin_Update_Endpoints {
 	public function __construct() {
-		$this->version = '1.0.1';
+		$this->version = '1.1.0';
 		$this->plugin_name = 'plugin-update-endpoints';
 		$this->api_route = $this->plugin_name.'/v1';
 
@@ -71,16 +71,64 @@ class PluginUpdateEndpoints {
 
 		$plugin_php_file = $this->get_plugin_by_slug($r['plugin']);
 
+
 		ob_start();
 		$this->update_plugin($plugin_php_file);
 		$out = ob_get_clean();
-
+		
 		$url = strip_tags($out);
 		if ( true === empty($url) ) {
-			return new WP_REST_Response(null, 204);
+			$plugin_abs = WP_PLUGIN_DIR . '/' . plugin_dir_path($plugin_php_file);
+			$url = $this->zip_plugin($plugin_abs);
 		}
 		wp_redirect($url, 301);
 		exit;
+	}
+
+
+	/**
+	 * Zip a given directory and return the zip file.
+	 */
+	public function zip_plugin($dir) {
+		// Get real path for our folder
+		$rootPath = realpath($dir);
+
+		// Setup Dist folder and delete previous ones.
+		$dist_path = wp_upload_dir()['basedir'] . '/' . $this->plugin_name;
+		$dist_url = wp_upload_dir()['baseurl'] . '/' . $this->plugin_name;
+		$dist_file = $dist_path . '/plugin.zip';
+		if (!file_exists($dist_path)) {
+			mkdir($dist_path, 0777, true);
+		}
+		if (file_exists($dist_file)) {
+			unlink($dist_file);
+		}
+
+		// Initialize archive object
+		$zip = new ZipArchive();
+		$zip->open($dist_file, ZipArchive::CREATE | ZipArchive::OVERWRITE);
+
+		// Create recursive directory iterator
+		/** @var SplFileInfo[] $files */
+		$files = new RecursiveIteratorIterator(
+			new RecursiveDirectoryIterator($rootPath),
+			RecursiveIteratorIterator::LEAVES_ONLY
+		);
+		foreach ($files as $file) {
+			// Skip directories (they would be added automatically)
+			if ( ! $file->isDir() ) {
+				// Get real and relative path for current file
+				$filePath = $file->getRealPath();
+				$relativePath = substr($filePath, strlen($rootPath) + 1);
+
+				// Add current file to archive
+				$zip->addFile($filePath, $relativePath);
+			}
+		}
+
+		// Zip archive will be created only after closing object
+		$zip->close();
+		return $dist_url . '/plugin.zip';
 	}
 
 	/**
@@ -106,6 +154,8 @@ class PluginUpdateEndpoints {
 	 * @return void
 	 */
 	private function update_plugin($file) {
+		// Activate plugin before upgrade
+		activate_plugin($file);
 		$this->check_for_plugin_updates();
 		if (!class_exists('Plugin_Upgrader')) {
 			require_once ABSPATH . 'wp-admin/includes/class-wp-upgrader.php';
@@ -115,8 +165,8 @@ class PluginUpdateEndpoints {
 		$skin = new WP_Upgrader_Url();
 		$upgrader = new Plugin_Upgrader($skin);
 		$upgrader->upgrade($file);
-		// Activate plugin after upgrade
-		activate_plugin($file);
+		// Deactivate plugin after upgrade
+		deactivate_plugins($file);
 	}
 
 	/**
@@ -149,4 +199,4 @@ class PluginUpdateEndpoints {
 	}
 }
 
-$plugin_update_endpoints = new PluginUpdateEndpoints();
+$plugin_update_endpoints = new Plugin_Update_Endpoints();
